@@ -1,0 +1,34 @@
+# EVOLVE-BLOCK-START
+"""
+URI Authority Confusion - Exploits the 'userinfo@host' syntax in Absolute URIs.
+We inject a fake 'allowed' domain in the userinfo field to fool regex-based DPI,
+while the server resolves the actual host after the '@'.
+"""
+
+def generate_http_request(host: str = "blocked.com", path: str = "/") -> bytes:
+    # We define a "decoy" host that the DPI considers safe.
+    decoy_host = "google.com"
+    
+    # We construct an Absolute URI where the decoy is technically the "username"
+    # format: http://[userinfo]@[host]/[path]
+    # The server ignores the username but routes to the host.
+    absolute_uri = f"http://{decoy_host}@{host}{path}"
+    
+    # NOTE: When sending an Absolute URI to an origin server, 
+    # RFC 7230 states the server MUST ignore the Host header, 
+    # but we include it to ensure compatibility with stricter servers.
+    request_line = f"GET {absolute_uri} HTTP/1.1\r\n"
+    
+    headers = [
+        f"Host: {host}",
+        "Connection: close"
+    ]
+    
+    request = request_line + "\r\n".join(headers) + "\r\n\r\n"
+    
+    return request.encode('utf-8')
+
+if __name__ == "__main__":
+    payload = generate_http_request(host="blocked.com")
+    print(payload.hex())
+# EVOLVE-BLOCK-END
